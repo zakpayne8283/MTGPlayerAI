@@ -10,6 +10,10 @@ class GameManager:
         self.game_state = GameState(player_one_deck, player_two_deck)
 
     def initialize_game(self):
+        # shuffle both decks
+        self.player_one_deck.shuffle()
+        self.player_two_deck.shuffle()
+
         # always starts with player one
         # draw opening hand
         self.game_state.draw_card(7)
@@ -22,7 +26,8 @@ class GameManager:
         # switch back to player one
         self.game_state.pass_active_player()
 
-        print()
+        print('-'*5, 'GAME INITIALIZED', '-'*5)
+        print(self.game_state)
     
     def run_game(self):
         

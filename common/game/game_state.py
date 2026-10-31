@@ -4,6 +4,7 @@ from common.card.card import Card
 from common.deck.deck import Deck
 from common.game.game_exceptions import GameOverException
 
+
 def run_check_state_based_actions(method):
     @wraps(method)
     def wrapper(self, *args, **kwargs):
@@ -31,7 +32,7 @@ class GameState:
     def __str__(self):
         return f'Life: {self.player_one_life}-{self.player_two_life} ||' \
                f'Cards in Hand: {len(self.player_one_hand)}-{len(self.player_two_hand)} ||' \
-               f'Cards in Library: {len(self.player_one_library)}-{len(self.player_two_library)}'
+               f'Cards in Library: {len(self.player_one_library.cards)}-{len(self.player_two_library.cards)}'
 
     def check_state_based_actions(self):
         if self.player_one_life <= 0:
@@ -42,13 +43,13 @@ class GameState:
             self.game_loser = 2
             raise GameOverException('Player Two Loses: <= 0 life')
 
-    @check_state_based_actions
+    @run_check_state_based_actions
     def draw_card(self, cards_to_draw=1):
         try:
             if self.active_player == 1:
-                self.player_one_hand.extend(self.player_one_library.top_x(cards_to_draw, draw=True))
+                self.player_one_hand.extend(self.player_one_library.draw_top_x(cards_to_draw))
             else:
-                self.player_two_hand.extend(self.player_two_library.top_x(cards_to_draw, draw=True))
+                self.player_two_hand.extend(self.player_two_library.draw_top_x(cards_to_draw))
         except IndexError:
             if self.active_player == 1:
                 self.game_loser = 1
@@ -63,7 +64,7 @@ class GameState:
     def is_over(self):
         return self.player_one_life < 0 or self.player_two_life < 0
     
-    @check_state_based_actions
+    @run_check_state_based_actions
     def pass_active_player(self):
         if self.active_player == 1:
             self.active_player = 2
