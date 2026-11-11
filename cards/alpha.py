@@ -1,8 +1,8 @@
 """Alpha card pool. Start in code; migrate to JSON/YAML + loader once the shape settles."""
 from __future__ import annotations
-from .card_def import CardDef, CardType as T, Color as C, ManaCost
-from .ability import Ability, AbilityKind as K, Cost, TargetSpec
-from ..engine.effects import DealDamage, ModifyPT, AddMana, Draw, Destroy
+from card_def import CardDef, CardType as T, Color as C, ManaCost
+from ability import Ability, AbilityKind as K, Cost, TargetSpec
+from engine.effects import DealDamage, ModifyPT, AddMana, Draw, Destroy
 
 CARDS: dict[str, CardDef] = {}
 

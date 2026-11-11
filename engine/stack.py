@@ -2,10 +2,10 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from ..cards.ability import Ability, AbilityKind, TargetSpec
-from ..cards.card_def import CardType
-from .state import GameState, Zone, Target, IllegalAction
-from .events import apply, ZoneChange, SpellCast, TapChanged
+from cards.ability import Ability, AbilityKind, TargetSpec
+from cards.card_def import CardType
+from state import GameState, Zone, Target, IllegalAction
+from events import apply, ZoneChange, SpellCast, TapChanged
 
 
 @dataclass

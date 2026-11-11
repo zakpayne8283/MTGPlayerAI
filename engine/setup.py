@@ -2,10 +2,10 @@
 from __future__ import annotations
 import random
 
-from ..cards.alpha import CARDS
-from .events import apply, CardDrawn
-from .mana import ManaPool
-from .state import GameState, Player, Zone
+from cards.alpha import CARDS
+from events import apply, CardDrawn
+from mana import ManaPool
+from state import GameState, Player, Zone
 
 
 def new_game(decks: list[list[str]], agents: list, seed: int = 0, hand_size: int = 7) -> GameState:

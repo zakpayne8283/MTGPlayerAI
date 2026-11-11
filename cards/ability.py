@@ -7,9 +7,9 @@ from typing import Callable, TYPE_CHECKING
 from .card_def import ManaCost
 
 if TYPE_CHECKING:
-    from ..engine.effects import Effect
-    from ..engine.state import GameState, GameObject
-    from ..engine.events import Event
+    from engine.effects import Effect
+    from engine.state import GameState, GameObject
+    from engine.events import Event
 
 
 class AbilityKind(Enum):

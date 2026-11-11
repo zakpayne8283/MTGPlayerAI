@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 
-from ..engine.actions import legal_actions
+from engine.actions import legal_actions
 from .base import (Pass, PriorityRequest, DeclareAttackersRequest,
                    DeclareBlockersRequest, DiscardRequest)
 

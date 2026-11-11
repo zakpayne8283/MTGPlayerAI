@@ -4,9 +4,9 @@ from dataclasses import dataclass, replace
 from enum import IntEnum
 from typing import Callable, Protocol, TYPE_CHECKING
 
-from ..cards.card_def import Color
-from .state import GameState, Characteristics
-from .events import apply, DamageDealt, CardDrawn, Destroyed
+from cards.card_def import Color
+from state import GameState, Characteristics
+from events import apply, DamageDealt, CardDrawn, Destroyed
 
 if TYPE_CHECKING:
     from .stack import StackObject

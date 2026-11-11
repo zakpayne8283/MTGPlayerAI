@@ -1,9 +1,9 @@
 """State-based actions (rule 704). Run repeatedly until nothing changes."""
 from __future__ import annotations
 
-from ..cards.card_def import CardType
-from .state import GameState, Zone
-from .events import apply, Destroyed, ZoneChange
+from cards.card_def import CardType
+from state import GameState, Zone
+from events import apply, Destroyed, ZoneChange
 
 
 class GameOver(Exception):

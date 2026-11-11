@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, Any
 
-from ..engine.state import GameState, Target
+from engine.state import GameState, Target
 
 
 # ---- Requests (engine -> agent) ----

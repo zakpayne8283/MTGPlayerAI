@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 
-from ..cards.card_def import Color, ManaCost
+from cards.card_def import Color, ManaCost
 
 
 @dataclass

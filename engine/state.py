@@ -6,15 +6,15 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from ..cards.card_def import CardDef, CardType, Color
+from cards.card_def import CardDef, CardType, Color
 
 if TYPE_CHECKING:
-    from .combat import CombatState
-    from .stack import StackObject
-    from .mana import ManaPool
-    from .effects import ContinuousEffect
-    from .events import Event
-    from ..agents.base import Agent
+    from combat import CombatState
+    from stack import StackObject
+    from mana import ManaPool
+    from effects import ContinuousEffect
+    from events import Event
+    from agents.base import Agent
 
 
 class IllegalAction(Exception):
