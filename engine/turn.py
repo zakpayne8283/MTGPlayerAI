@@ -4,13 +4,13 @@ from __future__ import annotations
 from agents.base import (PriorityRequest, Pass, DeclareAttackersRequest,
                            DeclareBlockersRequest, DiscardRequest)
 from . import combat as combat_mod
-from actions import perform
-from combat import CombatState
-from effects import expire_end_of_turn_effects
-from events import apply, CardDrawn, TapChanged, ZoneChange
-from sba import check_sbas, GameOver
-from stack import resolve_top
-from state import GameState, Step, Target, Zone, IllegalAction
+from engine.actions import perform
+from engine.combat import CombatState
+from engine.effects import expire_end_of_turn_effects
+from engine.events import apply, CardDrawn, TapChanged, ZoneChange
+from engine.sba import check_sbas, GameOver
+from engine.stack import resolve_top
+from engine.state import GameState, Step, Target, Zone, IllegalAction
 
 STEP_ORDER = list(Step)
 NO_PRIORITY = {Step.UNTAP, Step.CLEANUP}

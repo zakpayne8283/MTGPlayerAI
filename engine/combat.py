@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from cards.card_def import CardType
-from state import GameState, Target, IllegalAction
-from events import apply, DamageDealt, TapChanged
+from engine.state import GameState, Target, IllegalAction
+from engine.events import apply, DamageDealt, TapChanged
 
 
 @dataclass

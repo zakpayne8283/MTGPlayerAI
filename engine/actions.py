@@ -10,10 +10,10 @@ from itertools import product
 from agents.base import PlayLand, CastSpell, ActivateAbility
 from cards.ability import Ability, AbilityKind, Cost
 from cards.card_def import CardType, ManaCost
-from effects import AddMana
-from events import apply, ZoneChange, TapChanged
-from stack import StackObject, cast_spell, resolve_mana_ability, target_is_legal
-from state import GameState, Zone, Step, Target, IllegalAction
+from engine.effects import AddMana
+from engine.events import apply, ZoneChange, TapChanged
+from engine.stack import StackObject, cast_spell, resolve_mana_ability, target_is_legal
+from engine.state import GameState, Zone, Step, Target, IllegalAction
 
 MAIN_STEPS = {Step.MAIN1, Step.MAIN2}
 _TAP_ONLY = Cost(tap_self=True)

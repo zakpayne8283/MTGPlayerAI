@@ -1,8 +1,8 @@
 """Play a game in the terminal: python -m mtg.play  (you = P0, random bot = P1)"""
 from agents.cli import CLIAgent
-from .agents.random_agent import RandomAgent
-from .engine.setup import new_game
-from .engine.turn import run_game
+from agents.random_agent import RandomAgent
+from engine.setup import new_game
+from engine.turn import run_game
 
 # define decks
 # TODO: Deck selections

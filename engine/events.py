@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable
 
-from .state import GameState, Zone, Target
+from engine.state import GameState, Zone, Target
 
 
 @dataclass(frozen=True)

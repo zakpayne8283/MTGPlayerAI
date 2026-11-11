@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Callable, TYPE_CHECKING
 
-from .card_def import ManaCost
+from cards.card_def import ManaCost
 
 if TYPE_CHECKING:
     from engine.effects import Effect

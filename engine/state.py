@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING
 from cards.card_def import CardDef, CardType, Color
 
 if TYPE_CHECKING:
-    from combat import CombatState
-    from stack import StackObject
-    from mana import ManaPool
-    from effects import ContinuousEffect
-    from events import Event
+    from engine.combat import CombatState
+    from engine.stack import StackObject
+    from engine.mana import ManaPool
+    from engine.effects import ContinuousEffect
+    from engine.events import Event
     from agents.base import Agent
 
 

@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from cards.card_def import CardType
-from state import GameState, Zone
-from events import apply, Destroyed, ZoneChange
+from engine.state import GameState, Zone
+from engine.events import apply, Destroyed, ZoneChange
 
 
 class GameOver(Exception):
