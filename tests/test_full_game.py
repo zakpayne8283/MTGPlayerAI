@@ -1,8 +1,8 @@
 import pytest
-from mtg.agents.random_agent import RandomAgent
-from mtg.engine.setup import new_game
-from mtg.engine.turn import run_game
-from .helpers import BOLT_DECK, GREEN_DECK, BLACK_DECK
+from agents.random_agent import RandomAgent
+from engine.setup import new_game
+from engine.turn import run_game
+from tests.helpers import BOLT_DECK, GREEN_DECK, BLACK_DECK
 
 
 def play(deck_a, deck_b, seed):

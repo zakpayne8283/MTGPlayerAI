@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import ClassVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .ability import Ability
@@ -30,16 +30,18 @@ class ManaCost:
     generic: int = 0
     colored: tuple[Color, ...] = ()  # e.g. (Color.RED, Color.RED)
 
+    def __str__(self):
+        return f'{self.generic}' + f'{self.colored}'
+
     @property
     def cmc(self) -> int:
         return self.generic + len(self.colored)
 
 
-@dataclass(frozen=True)
 class CardDef:
-    name: str
-    cost: ManaCost | None  # None for lands
-    types: frozenset[CardType]
+    name: ClassVar[str]
+    cost: ClassVar[ManaCost | None]  # None for lands
+    types: ClassVar[frozenset[CardType]]
     subtypes: frozenset[str] = frozenset()
     power: int | None = None
     toughness: int | None = None

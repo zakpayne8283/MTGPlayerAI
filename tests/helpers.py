@@ -1,6 +1,5 @@
-from mtg.agents.random_agent import RandomAgent
-from mtg.engine.mana import ManaPool
-from mtg.engine.state import GameState, Player, Zone, Step
+from engine.mana import ManaPool
+from engine.state import GameState, Player, Step
 
 
 def make_game(turn=1, step=Step.MAIN1) -> GameState:
@@ -11,7 +10,7 @@ def make_game(turn=1, step=Step.MAIN1) -> GameState:
 
 
 def put(g, card, zone, owner=0):
-    from mtg.cards.alpha import CARDS
+    from cards.alpha import CARDS
     obj = g.create_object(CARDS[card], owner, zone)
     obj.entered_turn = 0  # pretend it's been there a while (not summoning sick)
     return obj

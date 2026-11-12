@@ -1,9 +1,9 @@
 import pytest
-from mtg.agents.base import PlayLand, CastSpell
-from mtg.engine import actions
-from mtg.engine.stack import resolve_top
-from mtg.engine.state import Zone, Step, Target, IllegalAction
-from .helpers import make_game, put
+from agents.base import CastSpell
+from engine import actions
+from engine.stack import resolve_top
+from engine.state import Zone, Step, Target, IllegalAction
+from tests.helpers import make_game, put
 
 
 def test_play_land_once_per_turn():
@@ -74,7 +74,7 @@ def test_fizzle_when_target_gone():
     actions.cast(g, 0, b1.id, (Target("object", bears.id),))
     actions.cast(g, 0, b2.id, (Target("object", bears.id),))
     resolve_top(g)  # first bolt kills bears (after SBA); simulate SBA:
-    from mtg.engine.sba import check_sbas
+    from engine.sba import check_sbas
     check_sbas(g)
     resolve_top(g)  # second bolt fizzles, no crash
     assert len(g.players[0].graveyard) == 2

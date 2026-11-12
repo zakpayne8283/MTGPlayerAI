@@ -78,6 +78,8 @@ def plan_payment(state: GameState, player: int, cost: ManaCost, exclude: int | N
                 return True
         return False
 
+    print(cost)
+
     for c in cost.colored:
         if pool[c] > 0:
             pool[c] -= 1

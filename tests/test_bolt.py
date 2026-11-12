@@ -1,7 +1,7 @@
 """Raw stack path: cast_spell + resolve_top without validation or mana."""
-from mtg.engine.stack import cast_spell, resolve_top
-from mtg.engine.state import Zone, Target
-from .helpers import make_game, put
+from engine.stack import cast_spell, resolve_top
+from engine.state import Zone, Target
+from tests.helpers import make_game, put
 
 
 def test_bolt_face():

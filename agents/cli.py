@@ -4,12 +4,34 @@ from engine.actions import legal_actions
 from .base import (Pass, PlayLand, CastSpell, ActivateAbility, PriorityRequest,
                    DeclareAttackersRequest, DeclareBlockersRequest, DiscardRequest)
 
+from typing import TYPE_CHECKING
 
-def _name(state, oid) -> str:
-    return f"{state.objects[oid].card.name}#{oid}"
+if TYPE_CHECKING:
+    from engine.state import GameState
+
+
+def _name(state: GameState, obj_id:int) -> str:
+    """
+    Generates a friendly name from the state given an object id 
+    
+    :param state: GameState object for current game
+    :param obj_id: int of GameObject to look up
+    :return: `CardName (#obj_id)` formatted card name
+    :rtype: str
+    """
+    return f'{state.objects[obj_id].card.name} (#{obj_id})'
 
 
 def _ask(prompt: str) -> str:
+    """
+    Asks for which action to take
+    
+    :param prompt: String to prompt user
+    :type prompt: str
+    :return: User response
+    :rtype: str
+    """
+
     try:
         return input(prompt).strip()
     except EOFError:

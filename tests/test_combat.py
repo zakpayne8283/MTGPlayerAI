@@ -1,7 +1,7 @@
-from mtg.engine import combat
-from mtg.engine.sba import check_sbas
-from mtg.engine.state import Zone, Target
-from .helpers import make_game, put
+from engine import combat
+from engine.sba import check_sbas
+from engine.state import Zone, Target
+from tests.helpers import make_game, put
 
 
 def setup_combat(attacker="Grizzly Bears"):
