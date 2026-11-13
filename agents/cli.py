@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from engine.actions import legal_actions
+from engine.actions.dispatch import legal_actions
 from .base import (Pass, PlayLand, CastSpell, ActivateAbility, PriorityRequest,
                    DeclareAttackersRequest, DeclareBlockersRequest, DiscardRequest)
 

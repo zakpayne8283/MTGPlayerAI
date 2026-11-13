@@ -12,7 +12,7 @@ class PriorityRequest:
     state: GameState
     player: int
     # respond with: Pass | PlayLand | CastSpell | ActivateAbility
-    # (see engine.actions.legal_actions for the legal set)
+    # (see engine.actions.dispatch.legal_actions for the legal set)
 
 
 @dataclass

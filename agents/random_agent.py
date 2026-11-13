@@ -1,7 +1,7 @@
 from __future__ import annotations
 import random
 
-from engine.actions import legal_actions
+from engine.actions.dispatch import legal_actions
 from engine.combat import can_block
 from agents.base import (Pass, PriorityRequest, DeclareAttackersRequest,
                    DeclareBlockersRequest, DiscardRequest)

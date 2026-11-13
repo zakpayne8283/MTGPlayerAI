@@ -4,7 +4,7 @@ from __future__ import annotations
 from agents.base import (PriorityRequest, Pass, DeclareAttackersRequest,
                            DeclareBlockersRequest, DiscardRequest)
 from . import combat as combat_mod
-from engine.actions import perform
+from engine.actions.dispatch import perform
 from engine.combat import CombatState
 from engine.effects import expire_end_of_turn_effects
 from engine.events import apply, CardDrawn, TapChanged, ZoneChange
