@@ -4,7 +4,6 @@ from engine.state import GameState, IllegalAction, Step, Target
 
 MAIN_STEPS = {Step.MAIN1, Step.MAIN2}
 
-# ---------- helpers ----------
 def _require_priority(state: GameState, player: int) -> None:
     if state.priority_player != player:
         raise IllegalAction("you don't have priority")
