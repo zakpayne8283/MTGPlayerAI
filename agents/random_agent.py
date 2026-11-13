@@ -2,7 +2,8 @@ from __future__ import annotations
 import random
 
 from engine.actions import legal_actions
-from .base import (Pass, PriorityRequest, DeclareAttackersRequest,
+from engine.combat import can_block
+from agents.base import (Pass, PriorityRequest, DeclareAttackersRequest,
                    DeclareBlockersRequest, DiscardRequest)
 
 
@@ -22,8 +23,12 @@ class RandomAgent:
         if isinstance(request, DeclareAttackersRequest):
             return [a for a in request.legal_attackers if r.random() < self.attack_prob]
         if isinstance(request, DeclareBlockersRequest):
-            return {b: r.choice(request.attackers) for b in request.legal_blockers
-                    if r.random() < self.block_prob}
+            out = {}
+            for b in request.legal_blockers:
+                options = [a for a in request.attackers if can_block(request.state, b, a)]
+                if options and r.random() < self.block_prob:
+                    out[b] = r.choice(options)
+            return out
         if isinstance(request, DiscardRequest):
             return r.sample(request.state.players[request.player].hand, request.count)
         raise NotImplementedError(type(request))

@@ -4,6 +4,7 @@ from .swamp import Swamp
 from .mountain import Mountain
 from .forest import Forest
 
+from .air_elemental import AirElemental
 from .ancestral_recall import AncestralRecall
 from .giant_growth import GiantGrowth
 from .grizzly_bears import GrizzlyBears

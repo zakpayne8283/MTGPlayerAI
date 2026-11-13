@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 
+from cards.abilities.combat_ability import CombatAbility
 from cards.card_def import CardType
 from engine.state import GameState, Target, IllegalAction
 from engine.events import apply, DamageDealt, TapChanged
@@ -30,6 +31,9 @@ def legal_attackers(state: GameState, player: int) -> list[int]:
 def legal_blockers(state: GameState, player: int) -> list[int]:
     return _untapped_creatures(state, player)  # TODO: evasion (flying, walks)
 
+def can_block(state: GameState, blocker_id: int, attacker_id: int):
+    att_chars, blk_chars = state.characteristics(attacker_id), state.characteristics(blocker_id)
+    return all(ab.can_be_blocked_by(att_chars, blk_chars) for ab in att_chars.abilities if isinstance(ab, CombatAbility) and ab.can_be_blocked_by)
 
 def declare_attackers(state: GameState, combat: CombatState, player: int, chosen: list[int],
                       defender: Target) -> None:
@@ -51,6 +55,8 @@ def declare_blockers(state: GameState, combat: CombatState, defender: int,
             raise IllegalAction(f"{blocker} can't block")
         if attacker not in combat.attackers or combat.attackers[attacker].id != defender:
             raise IllegalAction(f"{attacker} isn't attacking this player")
+        if not can_block(state, blocker, attacker):
+            raise IllegalAction(f"{blocker} can't block {attacker}")
         combat.blockers.setdefault(attacker, []).append(blocker)
     # TODO: attacker's controller should order blockers; currently declaration order
 

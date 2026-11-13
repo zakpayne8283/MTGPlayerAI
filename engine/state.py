@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from engine.effects import ContinuousEffect
     from engine.events import Event
     from agents.base import Agent
+    from cards.abilities.ability import Ability
 
 
 class IllegalAction(Exception):
@@ -77,6 +78,11 @@ class Characteristics:
     colors: frozenset[Color]
     controller: int
     keywords: frozenset[str] = frozenset()
+
+    abilities: tuple[Ability, ...] = ()
+
+    def has(self, ability: Ability) -> bool:
+        return ability in self.abilities
 
 
 @dataclass

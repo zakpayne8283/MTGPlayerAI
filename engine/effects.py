@@ -101,6 +101,7 @@ def compute_characteristics(state: GameState, obj_id: int) -> Characteristics:
         power=obj.card.power, toughness=obj.card.toughness,
         types=obj.card.types, subtypes=obj.card.subtypes,
         colors=obj.card.derived_colors, controller=obj.controller,
+        abilities=obj.card.abilities
     )
     # TODO: gather static abilities of battlefield permanents into ContinuousEffects (Crusade etc.)
     # TODO: drop "static" effects whose source left the battlefield; handle dependencies

@@ -5,7 +5,7 @@ from enum import Enum, auto
 from typing import ClassVar, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .ability import Ability
+    from .abilities.ability import Ability
 
 
 class CardType(Enum):

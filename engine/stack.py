@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from cards.ability import Ability, AbilityKind, TargetSpec
+from cards.abilities.ability import Ability, AbilityKind, TargetSpec
 from cards.card_def import CardType
 from engine.state import GameState, Zone, Target, IllegalAction
 from engine.events import apply, ZoneChange, SpellCast, TapChanged

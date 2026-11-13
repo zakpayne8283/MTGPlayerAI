@@ -8,7 +8,7 @@ from collections import Counter
 from itertools import product
 
 from agents.base import PlayLand, CastSpell, ActivateAbility
-from cards.ability import Ability, AbilityKind, Cost
+from cards.abilities.ability import Ability, AbilityKind, Cost
 from cards.card_def import CardType, ManaCost
 from engine.effects import AddMana
 from engine.events import apply, ZoneChange, TapChanged

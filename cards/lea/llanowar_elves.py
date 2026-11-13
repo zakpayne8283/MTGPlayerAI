@@ -1,5 +1,5 @@
 from cards.card_def import CardDef, CardType, Color, ManaCost
-from cards.ability import Ability, AbilityKind, Cost
+from cards.abilities.ability import Ability, AbilityKind, Cost
 from engine.effects import AddMana
 
 class LlanowarElves(CardDef):

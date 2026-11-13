@@ -1,5 +1,5 @@
 from cards.card_def import CardDef, CardType, Color, ManaCost
-from cards.ability import Ability, AbilityKind, TargetSpec
+from cards.abilities.ability import Ability, AbilityKind, TargetSpec
 from engine.effects import DealDamage
 
 class LightningBolt(CardDef):

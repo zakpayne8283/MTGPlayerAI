@@ -109,7 +109,7 @@ def _mutate(state: GameState, ev: Event) -> None:
 
 def _collect_triggers(state: GameState, ev: Event) -> None:
     """Queue matching triggered abilities; stack placement happens in the priority loop."""
-    from cards.ability import AbilityKind
+    from cards.abilities.ability import AbilityKind
     for obj in state.permanents():
         for ab in obj.card.abilities:
             if ab.kind is AbilityKind.TRIGGERED and ab.trigger and isinstance(ev, ab.trigger.event_type):

@@ -43,6 +43,7 @@ class Trigger:
 @dataclass(frozen=True)
 class Ability:
     kind: AbilityKind
+    name: str | None = None
     effects: tuple["Effect", ...] = ()
     cost: Cost | None = None
     targets: tuple[TargetSpec, ...] = ()

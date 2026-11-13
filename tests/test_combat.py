@@ -1,6 +1,8 @@
+import pytest
+
 from engine import combat
 from engine.sba import check_sbas
-from engine.state import Zone, Target
+from engine.state import Zone, Target, IllegalAction
 from tests.helpers import make_game, put
 
 
@@ -35,3 +37,14 @@ def test_summoning_sick_creature_cannot_attack():
     fresh = put(g, "Grizzly Bears", Zone.BATTLEFIELD)
     fresh.entered_turn = 3  # entered this turn
     assert combat.legal_attackers(g, 0) == [old.id]
+
+def test_flyer_only_blocked_by_flyer_or_reach():
+    g, c, elemental = setup_combat("Air Elemental")
+    bears = put(g, "Grizzly Bears", Zone.BATTLEFIELD, owner=1)
+    assert not combat.can_block(g, bears.id, elemental.id)
+    with pytest.raises(IllegalAction):
+        combat.declare_blockers(g, c, 1, {bears.id: elemental.id})
+
+    g, c, elemental = setup_combat('Air Elemental')
+    def_elem = put(g, 'Air Elemental', Zone.BATTLEFIELD, owner=1)
+    assert combat.can_block(g, def_elem.id, elemental.id)

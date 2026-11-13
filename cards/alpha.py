@@ -1,8 +1,4 @@
-"""Alpha card pool. Start in code; migrate to JSON/YAML + loader once the shape settles."""
-from __future__ import annotations
-from cards.card_def import CardDef, CardType as T, Color as C, ManaCost
-from cards.ability import Ability, AbilityKind as K, Cost, TargetSpec
-from engine.effects import DealDamage, ModifyPT, AddMana, Draw, Destroy
+from cards.card_def import CardDef
 
 from cards import lea as LEA
 
@@ -21,6 +17,7 @@ register(LEA.Mountain())
 register(LEA.Forest())
 
 # ---- spells ----
+register(LEA.AirElemental())
 register(LEA.AncestralRecall())
 register(LEA.GiantGrowth())
 register(LEA.GrizzlyBears())
