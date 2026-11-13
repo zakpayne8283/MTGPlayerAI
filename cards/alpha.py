@@ -1,6 +1,6 @@
 from cards.card_def import CardDef
 
-from cards import lea as LEA
+from cards.card_sets import lea as LEA
 
 CARDS: dict[str, CardDef] = {}
 
