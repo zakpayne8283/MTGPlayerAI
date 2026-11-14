@@ -18,6 +18,7 @@ register(LEA.Forest())
 
 # ---- spells ----
 register(LEA.AirElemental())
+register(LEA.AnkhOfMishra())
 register(LEA.AncestralRecall())
 register(LEA.GiantGrowth())
 register(LEA.GrizzlyBears())

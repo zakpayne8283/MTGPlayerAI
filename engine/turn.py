@@ -9,7 +9,7 @@ from engine.combat import CombatState
 from engine.effects import expire_end_of_turn_effects
 from engine.events import apply, CardDrawn, TapChanged, ZoneChange
 from engine.sba import check_sbas, GameOver
-from engine.stack import resolve_top
+from engine.stack import resolve_top, StackObject
 from engine.state import GameState, Step, Target, Zone, IllegalAction
 
 STEP_ORDER = list(Step)
@@ -129,6 +129,10 @@ def priority_loop(state: GameState) -> None:
             passes = 0  # acting player keeps priority
 
 
-def _push_pending_triggers(state: GameState) -> None:
-    # TODO: APNAP ordering; controller orders own triggers; choose targets on placement
+def _push_pending_triggers(state):
+    n = len(state.players)
+    # APNAP: the active player's triggers go on first, so they resolve last
+    order = sorted(state.pending_triggers, key=lambda t: (t[1] - state.active_player) % n)
+    for src_id, controller, ab, targets in order:
+        state.stack.append(StackObject(state.next_id(), src_id, controller, ab, targets))
     state.pending_triggers.clear()

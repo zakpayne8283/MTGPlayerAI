@@ -8,7 +8,7 @@ from cards.card_def import ManaCost
 
 if TYPE_CHECKING:
     from engine.effects import Effect
-    from engine.state import GameState, GameObject
+    from engine.state import GameState, GameObject, Target
     from engine.events import Event
 
 
@@ -38,6 +38,7 @@ class Cost:
 class Trigger:
     event_type: type
     condition: Callable[["GameState", "GameObject", "Event"], bool]  # (state, source, event)
+    bind: Callable[..., tuple[Target, ...]] | None = None
 
 
 @dataclass(frozen=True)

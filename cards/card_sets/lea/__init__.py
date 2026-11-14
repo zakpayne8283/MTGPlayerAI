@@ -5,6 +5,7 @@ from .mountain import Mountain
 from .forest import Forest
 
 from .air_elemental import AirElemental
+from .ankh_of_mishra import AnkhOfMishra
 from .ancestral_recall import AncestralRecall
 from .giant_growth import GiantGrowth
 from .grizzly_bears import GrizzlyBears

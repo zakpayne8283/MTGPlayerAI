@@ -1,6 +1,6 @@
 """Every state change is an Event passed through apply(). Hooks for replacement/prevention/triggers live here."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Callable
 
 from engine.state import GameState, Zone, Target
@@ -17,6 +17,7 @@ class ZoneChange(Event):
     from_zone: Zone
     to_zone: Zone
     controller: int | None = None  # for Control Magic / enters under another's control
+    new_id: int | None = field(default=None, compare=None)
 
 
 @dataclass(frozen=True)
@@ -65,7 +66,7 @@ def apply(state: GameState, event: Event) -> None:
     ev = _run_replacements(state, event)
     if ev is None:
         return
-    _mutate(state, ev)
+    ev = _mutate(state, ev)
     state.log.append(ev)
     _collect_triggers(state, ev)
 
@@ -83,8 +84,9 @@ def _run_replacements(state: GameState, event: Event) -> Event | None:
 def _mutate(state: GameState, ev: Event) -> None:
     if isinstance(ev, ZoneChange):
         if ev.obj_id not in state.objects:
-            return
-        state.move(ev.obj_id, ev.to_zone, ev.controller)
+            return None
+        new = state.move(ev.obj_id, ev.to_zone, ev.controller)
+        return replace(ev, new_id=new.id)
     elif isinstance(ev, DamageDealt):
         if ev.target.kind == "player":
             apply(state, LifeChanged(ev.target.id, -ev.amount))
@@ -114,5 +116,6 @@ def _collect_triggers(state: GameState, ev: Event) -> None:
         for ab in obj.card.abilities:
             if ab.kind is AbilityKind.TRIGGERED and ab.trigger and isinstance(ev, ab.trigger.event_type):
                 if ab.trigger.condition(state, obj, ev):
-                    state.pending_triggers.append((obj.id, ab, ev))
+                    targets = ab.trigger.bind(state, obj, ev) if ab.trigger.bind else ()
+                    state.pending_triggers.append((obj.id, obj.controller, ab, targets))
     # TODO: leaves-the-battlefield triggers need last-known information from before the move
