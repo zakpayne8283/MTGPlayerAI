@@ -1,0 +1,7 @@
+# python stuff
+.venv/
+*/__pycache__
+
+# project stuff
+decks/
+last_sim_output.txt
