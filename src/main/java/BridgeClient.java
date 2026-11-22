@@ -16,6 +16,7 @@ public class BridgeClient {
         return in != null;
     }
 
+    /** Opens the single loopback connection shared by all decisions in one simulation batch. */
     public static void connect(int port) throws IOException {
         socket = new Socket("127.0.0.1", port);
         socket.setTcpNoDelay(true);
@@ -33,6 +34,7 @@ public class BridgeClient {
     /** synchronized: a timed-out game's leftover thread must not interleave with the next game. */
     public static synchronized int ask(String kind, String stateJson, List<String> actions) {
         StringBuilder sb = new StringBuilder();
+        // Newline framing lets Python read one complete decision at a time without extra libraries.
         sb.append("{\"type\":\"decision\",\"kind\":").append(q(kind));
         sb.append(",\"state\":").append(stateJson);
         sb.append(",\"actions\":").append(arr(actions)).append("}");
@@ -50,6 +52,7 @@ public class BridgeClient {
     }
 
     public static String q(String s) {
+        // Escape JSON string content, including control characters, before writing protocol lines.
         StringBuilder sb = new StringBuilder("\"");
         for (char c : s.toCharArray()) {
             switch (c) {

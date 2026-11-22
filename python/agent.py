@@ -30,7 +30,7 @@ def run_with_agent(launcher, decks, n, forge_dir, policy, deck_dir=None, quiet=T
                    port=5555, connect_timeout=120, timeout=3600):
     """Run n games with Python making seat 1's priority decisions.
 
-    Returns (java_output_text, stats_dict).
+    Returns (java_output_text, stats_dict, decision_messages, chosen_action_labels).
     """
     messages_sent = []
     actions = []

@@ -30,10 +30,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Multi-target and variable-target abilities are skipped for now (only reachable through the AI
  * suggestion). Mana payment, combat, mulligans, etc. all stay on Forge's AI.
  *
- * Unverified-from-source calls (from memory; expect to fix signatures at compile time):
- *   ComputerUtilCost.canPayCost(sa, player, false), SpellAbility.usesTargeting()/isManaAbility()/
- *   canTarget(GameObject)/resetTargets()/getTargets().add(...), TargetRestrictions.getMin/MaxTargets
- *   (host, sa), Game.getCardsIn(ZoneType).
  */
 public class PythonController extends PlayerControllerAi {
     public static final AtomicInteger DECISIONS = new AtomicInteger();
@@ -67,6 +63,7 @@ public class PythonController extends PlayerControllerAi {
         results.add(null);
         labels.add("Pass");
 
+        // Keep Forge's chosen play available as a safe option; its ability may already have targets.
         int aiIdx = -1;
         List<SpellAbility> aiPick = super.chooseSpellAbilityToPlay();
         if (aiPick != null && !aiPick.isEmpty()) {
@@ -75,6 +72,7 @@ public class PythonController extends PlayerControllerAi {
             labels.add("AI suggestion: " + describe(aiPick.get(0)));
         }
 
+        // Also expose straightforward plays that Python can choose and, if needed, target itself.
         for (SpellAbility sa : drivablePlays()) {
             List<SpellAbility> one = new ArrayList<>();
             one.add(sa);
@@ -98,11 +96,13 @@ public class PythonController extends PlayerControllerAi {
         for (ZoneType z : PLAY_ZONES) {
             for (Card c : me.getCardsIn(z)) {
                 for (SpellAbility sa : c.getAllPossibleAbilities(me, true)) {
-                    if (sa.isManaAbility()) continue;                    // mana is auto-paid by Forge AI
+                    // Mana abilities and payment remain Forge's responsibility.
+                    if (sa.isManaAbility()) continue;
                     if (!ComputerUtilCost.canPayCost(sa, me, false)) continue;
                     if (sa.usesTargeting()) {
+                        // Avoid abilities needing multiple or variable targets until that protocol exists.
                         if (!isSingleTarget(sa)) continue;
-                        if (targetCandidates(sa).isEmpty()) continue;    // would be uncastable -> loop
+                        if (targetCandidates(sa).isEmpty()) continue;
                     }
                     res.add(sa);
                 }
@@ -134,6 +134,7 @@ public class PythonController extends PlayerControllerAi {
 
     private List<GameObject> targetCandidates(SpellAbility sa) {
         List<GameObject> res = new ArrayList<>();
+        // sa.canTarget applies the card's target restrictions; these zones are public information.
         for (ZoneType z : TARGET_ZONES) {
             for (Card c : g.getCardsIn(z)) {
                 if (sa.canTarget(c)) res.add(c);

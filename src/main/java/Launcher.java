@@ -1,4 +1,4 @@
-import forge.GuiDesktop;                       // UNVERIFIED package: adjust if it doesn't compile
+import forge.GuiDesktop;
 import forge.ai.PlayerControllerAi;
 import forge.deck.Deck;
 import forge.deck.io.DeckSerializer;
@@ -11,7 +11,7 @@ import forge.game.GameType;
 import forge.game.Match;
 import forge.game.player.Player;
 import forge.game.player.RegisteredPlayer;
-import forge.gui.GuiBase;                       // UNVERIFIED package
+import forge.gui.GuiBase;
 import forge.localinstance.properties.ForgeConstants;
 import forge.model.FModel;
 import forge.player.GamePlayerUtil;
@@ -53,6 +53,7 @@ public class Launcher {
                 case "-D": deckDir = args[++i]; break;
                 case "-port": port = Integer.parseInt(args[++i]); break;
                 case "-d":
+                    // Forge's sim syntax uses one -d flag followed by both deck names.
                     while (i + 1 < args.length && !args[i + 1].startsWith("-")) decks.add(args[++i]);
                     break;
                 default: System.err.println("Ignoring unknown arg " + args[i]);
@@ -64,10 +65,22 @@ public class Launcher {
         }
 
         if (port != null) {
+            // Python starts the listener before launching this process, so connect once per batch.
             BridgeClient.connect(port);
         }
 
-        GuiBase.setInterface(new GuiDesktop());
+        // Point Forge at the shared assets folder explicitly. GuiDesktop's default is relative to
+        // its expected launch layout, which differs when we launch from the Maven classpath.
+        String assetsDir = System.getProperty("forge.assetsDir");
+        GuiBase.setInterface(new GuiDesktop() {
+            @Override
+            public String getAssetsDir() {
+                if (assetsDir == null || assetsDir.isBlank()) {
+                    return super.getAssetsDir();
+                }
+                return assetsDir.endsWith(File.separator) ? assetsDir : assetsDir + File.separator;
+            }
+        });
         FModel.initialize(null, null);
 
         GameType type = GameType.Constructed;
@@ -88,6 +101,7 @@ public class Launcher {
         }
 
         Match mc = new Match(rules, pp, "Test");
+        // Reuse the match configuration while creating a fresh game state for each game.
         for (int g = 0; g < nGames; g++) {
             playOne(mc, g);
         }
@@ -124,6 +138,7 @@ public class Launcher {
             game.setGameOver(GameEndReason.Draw);
         }
 
+        // Forge stores the newest log entry first; reverse it for normal chronological output.
         List<GameLogEntry> log = quiet
                 ? game.getGameLog().getLogEntries(GameLogEntryType.MATCH_RESULTS)
                 : game.getGameLog().getLogEntries(null);

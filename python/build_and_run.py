@@ -1,7 +1,11 @@
-"""Compile the Java bridge and run games, all from Python.
+"""Build the Maven bridge and run Forge simulations through the Python agent.
 
-Put this next to forge_sim.py. Usage:  python build_and_run.py [num_games]
+Usage: python build_and_run.py [num_games]
+
+Set FORGE_REPO when the Forge checkout is not next to this repository. Forge's
+matching Maven modules must be installed locally; see the project README.
 """
+import argparse
 from collections import Counter
 import os
 import re
@@ -11,104 +15,104 @@ from pathlib import Path
 
 import agent
 
-# ---- CONFIGS ----------------------------------------------------------------
-FORGE_CLONE = Path("/Users/zak/repos/forge")                        # the repo you built with mvn
-FORGE_DIR = Path("/Users/zak/repos/forge/forge-gui-desktop/target") # folder containing res/ (cwd for the game)
-BRIDGE_SRC = Path('/Users/zak/repos/mtg-ai-player/bridge')          # folder with Launcher.java etc.
-OUT_DIR = Path('/Users/zak/repos/mtg-ai-player/out')                # compiled classes go here
-DECKS = ['AI Deck #1.dck', 'AI Deck #1.dck']                        # use the SAME deck twice for the sanity test
-DECK_DIR = Path('/Users/zak/repos/mtg-ai-player/decks/')            # optional abs path to decks
-FORGE_JAR = None                                                    # set explicitly to skip auto-detection
-# -----------------------------------------------------------------------------
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+FORGE_REPO = Path(os.environ.get("FORGE_REPO", PROJECT_ROOT.parent / "forge")).expanduser()
+FORGE_VERSION = os.environ.get("FORGE_VERSION", "2.0.17-SNAPSHOT")
+FORGE_DIR = Path(os.environ.get(
+    "FORGE_DIR", FORGE_REPO / "forge-gui-desktop" / "target"
+)).expanduser()
+FORGE_ASSETS_DIR = Path(os.environ.get(
+    "FORGE_ASSETS_DIR", FORGE_REPO / "forge-gui"
+)).expanduser().resolve()
+DECK_DIR = Path(os.environ.get("DECK_DIR", PROJECT_ROOT / "decks")).expanduser()
+DECKS = ["AI Deck #1.dck", "AI Deck #1.dck"]
+MAIN_CLASS = "Launcher"
 
 
-def find_jar():
-    if FORGE_JAR:
-        return Path(FORGE_JAR)
-    jars = sorted((FORGE_CLONE / "forge-gui-desktop" / "target").glob("*jar-with-dependencies.jar"))
-    if not jars:
-        sys.exit(f"No *jar-with-dependencies.jar under {FORGE_CLONE}/forge-gui-desktop/target. "
-                 "Set FORGE_JAR explicitly.")
-    return jars[-1]
-
-
-def compile_bridge(jar):
-    OUT_DIR.mkdir(exist_ok=True)
-    sources = [str(p) for p in BRIDGE_SRC.glob("*.java")]
-    cmd = ["javac", "-cp", str(jar), "-d", str(OUT_DIR), *sources]
+def run_checked(command, *, cwd, description):
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-    except FileNotFoundError:
-        sys.exit("javac not found. Install a JDK (not just a JRE) and make sure it's on PATH.")
-    if proc.returncode != 0:
-        print(proc.stdout + proc.stderr)
-        sys.exit("Compile failed. Paste the errors above and we'll fix the signatures.")
-    print(f"Compiled {len(sources)} files -> {OUT_DIR}")
+        return subprocess.run(command, cwd=cwd, check=True, text=True)
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Required executable not found: {command[0]}") from exc
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"{description} failed (exit code {exc.returncode}).") from exc
 
 
-def run_games(decks, launcher=None, n=10, quiet=True, deck_dir=None, timeout=3600):
-    """Returns the combined stdout/stderr text of one `sim` invocation."""
-    if launcher is None:
-        raise Exception('LAUNCHER not set!')
+def build_bridge():
+    # Compile the standard Maven source tree against the selected Forge snapshot.
+    run_checked(["mvn", "-q", f"-Drevision={FORGE_VERSION}",
+                 f"-Dforge.version={FORGE_VERSION}", "-DskipTests", "package"],
+                cwd=PROJECT_ROOT, description="Maven bridge build")
+    classpath_file = PROJECT_ROOT / "target" / "dependency-classpath.txt"
+    run_checked([
+        "mvn", "-q", f"-Drevision={FORGE_VERSION}",
+        f"-Dforge.version={FORGE_VERSION}", "-DincludeScope=runtime",
+        f"-Dmdep.outputFile={classpath_file}", "dependency:build-classpath",
+    ], cwd=PROJECT_ROOT, description="Maven runtime classpath generation")
+    if not classpath_file.is_file():
+        raise RuntimeError(f"Maven did not create the runtime classpath at {classpath_file}")
+    # Launch with bridge classes first, followed by Forge's transitive runtime dependencies.
+    return os.pathsep.join([
+        str(PROJECT_ROOT / "target" / "classes"),
+        classpath_file.read_text(encoding="utf-8").strip(),
+    ])
 
-    # NOTE: all decks follow ONE -d flag. Repeating -d silently drops all but the last.
-    cmd = launcher + ["sim", "-d", *decks, "-n", str(n)]
-    if deck_dir:
-        cmd += ["-D", str(deck_dir)]
-    if quiet:
-        cmd.append("-q")
-    proc = subprocess.run(cmd, cwd=FORGE_DIR, capture_output=True, text=True, timeout=timeout)
-    return proc.stdout + proc.stderr
+
+def run_games(classpath, n, quiet=True):
+    if not FORGE_DIR.is_dir():
+        raise RuntimeError(f"Forge runtime directory not found: {FORGE_DIR}")
+    launcher = [
+        "java", f"-Dforge.assetsDir={FORGE_ASSETS_DIR}", "-Xmx4g",
+        "-cp", classpath, MAIN_CLASS,
+    ]
+    output, stats, messages, actions = agent.run_with_agent(
+        launcher=launcher,
+        decks=DECKS,
+        deck_dir=DECK_DIR,
+        n=n,
+        forge_dir=FORGE_DIR,
+        quiet=quiet,
+        policy=agent.random_policy,
+    )
+    (PROJECT_ROOT / "last_bridge_output.txt").write_text(output, encoding="utf-8")
+    print(f"Python decisions: {stats['decisions']} ({stats['kinds']})")
+    return output, messages, actions
 
 
-def parse_winners(output):
-    """Count wins per player name.
+def parse_args():
+    parser = argparse.ArgumentParser(description="Build the bridge and run Forge simulations.")
+    parser.add_argument("num_games", nargs="?", type=int, default=100)
+    parser.add_argument("--verbose", action="store_true", help="Keep Forge's full game log.")
+    return parser.parse_args()
 
-    UNVERIFIED: the exact result line format is from memory ("Game outcome: <player> has won ...").
-    Run once, look at the raw output, and adjust this regex if it returns nothing.
-    """
-    winners = re.findall(r"Game Result.*(Ai\(\d\))", output)
-    return Counter(winners)
 
 def main():
-    # number of games to run
-    num_games = 100
-
-    # grab our jar file
-    jar = find_jar()
-    print("Using jar:", jar)
-    # compile our bridge against that jar
-    compile_bridge(jar)
-
-    # Set the launcher value
-    laucnher = ["java", "-Xmx4g", "-cp", os.pathsep.join([str(jar.resolve()), str(OUT_DIR.resolve())]), "Launcher"]
-
-    # Run the simulated games
-    # out = run_games(DECKS, launcher=laucnher, n=num_games, quiet=False, deck_dir=DECK_DIR)
-    out, stats, messages, actions = agent.run_with_agent(
-            launcher=laucnher,
-            decks=DECKS,
-            deck_dir=DECK_DIR,
-            n=num_games,
-            forge_dir=FORGE_DIR,
-            quiet=True,
-            policy=agent.random_policy
+    args = parse_args()
+    try:
+        classpath = build_bridge()
+        output, _, _ = run_games(classpath, args.num_games, quiet=not args.verbose)
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        print(
+            "If Forge dependencies are missing, install the matching Forge modules with:\n"
+            f"  cd '{FORGE_REPO}' && mvn -Drevision={FORGE_VERSION} "
+            "-pl forge-gui-desktop -am "
+            "org.codehaus.mojo:flatten-maven-plugin:1.6.0:flatten "
+            "-DskipTests install",
+            file=sys.stderr,
         )
-    # output the results to a text file
-    Path("last_bridge_output.txt").write_text(out)
-    # Path('last_bridge_messages.txt').write_text('\n'.join([str(m) for m in messages]))
-    
-    # for a in actions:
-    #     print(a)
+        return 1
 
-    # count up the results
-    counts = parse_winners(out)
-    print(f"parsed {sum(counts.values())}/{num_games} games:", dict(counts))
-
-
-    # if not counts:
-    #     print("No results parsed. See last_bridge_output.txt")
+    winners = Counter(re.findall(
+        r"Game Result: Game \d+ ended in \d+ ms\. (Ai\(\d+\))", output
+    ))
+    if winners:
+        print(f"parsed {sum(winners.values())}/{args.num_games} games: {dict(winners)}")
+    else:
+        print(f"Saved Forge output for {args.num_games} games to last_bridge_output.txt")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

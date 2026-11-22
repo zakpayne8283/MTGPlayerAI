@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Behaves exactly like Forge's built-in AI (every method inherits from PlayerControllerAi).
- * The only addition is a counter on the main priority decision, which proves that Forge is
- * really calling YOUR class. Later, this is where decisions get routed to Python.
+ * The only addition is a counter on the main priority decision. This is the no-bridge baseline;
+ * when Python is connected, Launcher uses PythonController instead.
  */
 public class PassThroughController extends PlayerControllerAi {
     public static final AtomicInteger PRIORITY_CALLS = new AtomicInteger();
@@ -22,7 +22,6 @@ public class PassThroughController extends PlayerControllerAi {
     @Override
     public List<SpellAbility> chooseSpellAbilityToPlay() {
         PRIORITY_CALLS.incrementAndGet();
-        // FUTURE HOOK: ask Python here instead of (or before) delegating.
         return super.chooseSpellAbilityToPlay();
     }
 }
