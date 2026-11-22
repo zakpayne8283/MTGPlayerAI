@@ -1,7 +1,10 @@
 # python stuff
 .venv/
-*/__pycache__
+__pycache__/
+out/
 
 # project stuff
 decks/
+last_bridge_messages.txt
+last_bridge_output.txt
 last_sim_output.txt
