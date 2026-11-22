@@ -26,6 +26,9 @@ FORGE_ASSETS_DIR = Path(os.environ.get(
     "FORGE_ASSETS_DIR", FORGE_REPO / "forge-gui"
 )).expanduser().resolve()
 DECK_DIR = Path(os.environ.get("DECK_DIR", PROJECT_ROOT / "decks")).expanduser()
+DECISION_LOG_DIR = Path(os.environ.get(
+    "DECISION_LOG_DIR", PROJECT_ROOT / "decision_logs"
+)).expanduser()
 DECKS = ["AI Deck #1.dck", "AI Deck #1.dck"]
 MAIN_CLASS = "Launcher"
 
@@ -74,9 +77,11 @@ def run_games(classpath, n, quiet=True):
         forge_dir=FORGE_DIR,
         quiet=quiet,
         policy=agent.random_policy,
+        log_dir=DECISION_LOG_DIR,
     )
     (PROJECT_ROOT / "last_bridge_output.txt").write_text(output, encoding="utf-8")
     print(f"Python decisions: {stats['decisions']} ({stats['kinds']})")
+    print(f"Completed games: {stats['games']}; decision log: {stats['decision_log']}")
     return output, messages, actions
 
 

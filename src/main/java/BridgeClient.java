@@ -32,10 +32,19 @@ public class BridgeClient {
     }
 
     /** synchronized: a timed-out game's leftover thread must not interleave with the next game. */
-    public static synchronized int ask(String kind, String stateJson, List<String> actions) {
+    public static synchronized int ask(String gameId, int decisionId, Integer parentDecisionId,
+                                       String kind, int turn, String activePlayer, String priorityPlayer,
+                                       String phase, String stateJson, List<String> actions) {
         StringBuilder sb = new StringBuilder();
         // Newline framing lets Python read one complete decision at a time without extra libraries.
-        sb.append("{\"type\":\"decision\",\"kind\":").append(q(kind));
+        sb.append("{\"type\":\"decision\",\"schema_version\":1,\"game_id\":").append(q(gameId));
+        sb.append(",\"decision_id\":").append(decisionId);
+        if (parentDecisionId != null) sb.append(",\"parent_decision_id\":").append(parentDecisionId);
+        sb.append(",\"kind\":").append(q(kind));
+        sb.append(",\"turn\":").append(turn);
+        sb.append(",\"active_player\":").append(q(activePlayer));
+        sb.append(",\"priority_player\":").append(q(priorityPlayer));
+        sb.append(",\"phase\":").append(q(phase));
         sb.append(",\"state\":").append(stateJson);
         sb.append(",\"actions\":").append(arr(actions)).append("}");
         out.println(sb);
@@ -49,6 +58,20 @@ public class BridgeClient {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /** Send the terminal outcome for a game; unlike ask(), this message needs no reply. */
+    public static synchronized void sendGameResult(String runId, String gameId, String outcome,
+                                                   String winner, String reason, int turns) {
+        if (!enabled()) return;
+        StringBuilder sb = new StringBuilder("{\"type\":\"game_result\",\"schema_version\":1");
+        sb.append(",\"run_id\":").append(q(runId));
+        sb.append(",\"game_id\":").append(q(gameId));
+        sb.append(",\"outcome\":").append(q(outcome));
+        sb.append(",\"winner\":").append(winner == null ? "null" : q(winner));
+        sb.append(",\"reason\":").append(q(reason));
+        sb.append(",\"turns\":").append(turns).append("}");
+        out.println(sb);
     }
 
     public static String q(String s) {

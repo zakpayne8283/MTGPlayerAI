@@ -61,12 +61,14 @@ Action options should become objects with stable IDs and explicit fields (action
 
 **Steps**
 
-- [ ] Pick one versioned decision schema for logging and the Python/Java protocol.
-- [ ] Add game ID, monotonically increasing decision ID, turn number, active player, priority player, and phase.
-- [ ] Log state, available actions, chosen action, and any target selection with structured fields.
-- [ ] Record game end, winner/draw, and reason, linked by game ID.
-- [ ] Write JSONL records to a configurable output path; keep summary logging readable.
-- [ ] Include validation or a small reader that checks records are parseable and internally consistent.
+- [x] Pick one versioned decision schema for logging and the Python/Java protocol.
+- [x] Add game ID, monotonically increasing decision ID, turn number, active player, priority player, and phase.
+- [x] Log state, available actions, chosen action, and any target selection with structured fields.
+- [x] Record game end, winner/draw, and reason, linked by game ID.
+- [x] Write JSONL records to a configurable output path; keep summary logging readable.
+- [x] Include validation or a small reader that checks records are parseable and internally consistent.
+
+Schema version 1 writes `decision` and `game_result` records to one JSONL file per run. Decision records contain action IDs, coarse action kinds, and display labels; card identity, ability mode, and target requirements can be split into richer fields as the action/state model is refactored. Target decisions carry a parent decision ID. Outcomes are separate records linked by `game_id`.
 
 ## 3. State representation
 
@@ -119,3 +121,5 @@ Suggested progression:
 - Existing saved run artifacts show 100 completed same-deck games, but they are not a controlled evaluation of a learned policy.
 - The Java source now lives in `src/main/java` and builds as the `forge-bridge` Maven artifact.
 - The runner resolves project and Forge paths from the script location and environment variables, and asks Maven for the runtime classpath.
+- Decision and game-result JSONL records now carry schema version 1, run/game IDs, per-game decision IDs, parent links for target choices, and the terminal winner/draw.
+- Action records currently use stable per-decision IDs, coarse categories, and display labels; detailed card/mode/target fields remain part of the state/action refactor.

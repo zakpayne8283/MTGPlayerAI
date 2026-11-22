@@ -46,11 +46,14 @@ public class PythonController extends PlayerControllerAi {
 
     private final Game g;
     private final Player me;
+    private final String gameId;
+    private int decisionSequence = 0;
 
-    public PythonController(Game game, Player p, LobbyPlayer lp) {
+    public PythonController(Game game, Player p, LobbyPlayer lp, String gameId) {
         super(game, p, lp);
         this.g = game;
         this.me = p;
+        this.gameId = gameId;
     }
 
     @Override
@@ -80,12 +83,13 @@ public class PythonController extends PlayerControllerAi {
             labels.add(describe(sa));
         }
 
-        int idx = BridgeClient.ask("priority", stateJson(null), labels);
+        int priorityDecisionId = ++decisionSequence;
+        int idx = ask("priority", priorityDecisionId, null, stateJson(null), labels);
         List<SpellAbility> chosen = results.get(idx);
 
         // The AI's own suggestion already has its targets set. Ours do not, so set them now.
         if (chosen != null && idx != aiIdx) {
-            chooseTarget(chosen.get(0));
+            chooseTarget(chosen.get(0), priorityDecisionId);
         }
         return chosen;
     }
@@ -119,7 +123,7 @@ public class PythonController extends PlayerControllerAi {
     }
 
     /** Ask Python which legal target to use, and set it on the ability. */
-    private void chooseTarget(SpellAbility sa) {
+    private void chooseTarget(SpellAbility sa, int parentDecisionId) {
         if (!sa.usesTargeting()) return;
         List<GameObject> cands = targetCandidates(sa);
         if (cands.isEmpty()) return;
@@ -127,9 +131,21 @@ public class PythonController extends PlayerControllerAi {
         List<String> labels = new ArrayList<>();
         for (GameObject o : cands) labels.add(describeTarget(o));
 
-        int i = BridgeClient.ask("target", stateJson(sa.getHostCard().getName()), labels);
+        int targetDecisionId = ++decisionSequence;
+        int i = ask("target", targetDecisionId, parentDecisionId,
+                stateJson(sa.getHostCard().getName()), labels);
         sa.resetTargets();
         sa.getTargets().add(cands.get(i));
+    }
+
+    private int ask(String kind, int decisionId, Integer parentDecisionId,
+                    String state, List<String> actions) {
+        Player active = g.getPhaseHandler().getPlayerTurn();
+        Player priority = g.getPhaseHandler().getPriorityPlayer();
+        return BridgeClient.ask(gameId, decisionId, parentDecisionId, kind,
+                g.getPhaseHandler().getTurn(), active == null ? "" : active.getName(),
+                priority == null ? "" : priority.getName(),
+                String.valueOf(g.getPhaseHandler().getPhase()), state, actions);
     }
 
     private List<GameObject> targetCandidates(SpellAbility sa) {

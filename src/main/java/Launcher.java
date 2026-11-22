@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -45,6 +46,7 @@ public class Launcher {
         int nGames = 1;
         String deckDir = null;
         Integer port = null;
+        String runId = UUID.randomUUID().toString();
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "sim": break;
@@ -52,6 +54,7 @@ public class Launcher {
                 case "-n": nGames = Integer.parseInt(args[++i]); break;
                 case "-D": deckDir = args[++i]; break;
                 case "-port": port = Integer.parseInt(args[++i]); break;
+                case "-run-id": runId = args[++i]; break;
                 case "-d":
                     // Forge's sim syntax uses one -d flag followed by both deck names.
                     while (i + 1 < args.length && !args[i + 1].startsWith("-")) decks.add(args[++i]);
@@ -103,7 +106,7 @@ public class Launcher {
         Match mc = new Match(rules, pp, "Test");
         // Reuse the match configuration while creating a fresh game state for each game.
         for (int g = 0; g < nGames; g++) {
-            playOne(mc, g);
+            playOne(mc, g, runId);
         }
         System.err.println("PassThroughController priority calls: " + PassThroughController.PRIORITY_CALLS.get());
         System.err.println("PythonController decisions: " + PythonController.DECISIONS.get());
@@ -112,7 +115,7 @@ public class Launcher {
         System.exit(0); // Forge can leave non-daemon threads running
     }
 
-    private static void playOne(Match mc, int idx) {
+    private static void playOne(Match mc, int idx, String runId) {
         StopWatch sw = new StopWatch();
         sw.start();
         final Game game = mc.createGame();
@@ -121,8 +124,9 @@ public class Launcher {
         // setFirstController is one-shot and already used at game creation, so we temporarily
         // swap the controller for the duration of the game instead.
         final Player seat1 = game.getPlayers().get(0);
+        final String gameId = runId + "-game-" + (idx + 1);
         final PlayerControllerAi mine = BridgeClient.enabled()
-                ? new PythonController(game, seat1, seat1.getOriginalLobbyPlayer())
+                ? new PythonController(game, seat1, seat1.getOriginalLobbyPlayer(), gameId)
                 : new PassThroughController(game, seat1, seat1.getOriginalLobbyPlayer());
 
         try {
@@ -149,9 +153,14 @@ public class Launcher {
 
         if (game.getOutcome().isDraw()) {
             System.out.printf("%nGame Result: Game %d ended in a Draw! Took %d ms.%n", 1 + idx, sw.getTime());
+            BridgeClient.sendGameResult(runId, gameId, "draw", null,
+                    game.getOutcome().getWinCondition().name(), game.getPhaseHandler().getTurn());
         } else {
+            String winner = game.getOutcome().getWinningLobbyPlayer().getName();
             System.out.printf("%nGame Result: Game %d ended in %d ms. %s has won!%n%n",
-                    1 + idx, sw.getTime(), game.getOutcome().getWinningLobbyPlayer().getName());
+                    1 + idx, sw.getTime(), winner);
+            BridgeClient.sendGameResult(runId, gameId, "win", winner,
+                    game.getOutcome().getWinCondition().name(), game.getPhaseHandler().getTurn());
         }
     }
 

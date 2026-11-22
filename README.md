@@ -31,6 +31,13 @@ The game count defaults to 100. Forge's runtime working directory defaults to `f
 - `FORGE_DIR`: Forge runtime directory containing `res/` (default: `$FORGE_REPO/forge-gui-desktop/target`).
 - `FORGE_ASSETS_DIR`: Forge assets directory containing `res/` (default: `$FORGE_REPO/forge-gui`).
 - `DECK_DIR`: deck directory (default: this repository's `decks/`).
+- `DECISION_LOG_DIR`: directory for per-run JSONL decision/outcome logs (default: this repository's `decision_logs/`).
 - `FORGE_VERSION`: Forge dependency version (default: `2.0.17-SNAPSHOT`).
 
-Use `--verbose` to retain Forge's full game log. The runner writes Forge output to `last_bridge_output.txt` and prints a decision-count summary.
+Use `--verbose` to retain Forge's full game log. The runner writes Forge output to `last_bridge_output.txt` and one JSONL file per run with decision context, available actions, choices, and game outcomes.
+
+Validate a completed decision log with:
+
+```sh
+python3 python/validate_decision_log.py decision_logs/your-run-id.jsonl
+```

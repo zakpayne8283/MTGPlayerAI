@@ -3,6 +3,7 @@
 __pycache__/
 out/
 target/
+decision_logs/
 
 # project stuff
 decks/
