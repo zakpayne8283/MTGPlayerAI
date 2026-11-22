@@ -85,21 +85,22 @@ def main():
 
     # Run the simulated games
     # out = run_games(DECKS, launcher=laucnher, n=num_games, quiet=False, deck_dir=DECK_DIR)
-    out, stats = agent.run_with_agent(
+    out, stats, messages, actions = agent.run_with_agent(
             launcher=laucnher,
             decks=DECKS,
             deck_dir=DECK_DIR,
             n=num_games,
             forge_dir=FORGE_DIR,
-            quiet=False,
+            quiet=True,
             policy=agent.random_policy
         )
     # output the results to a text file
     Path("last_bridge_output.txt").write_text(out)
     # Path('last_bridge_messages.txt').write_text('\n'.join([str(m) for m in messages]))
     
-    print(stats)
-    
+    # for a in actions:
+    #     print(a)
+
     # count up the results
     counts = parse_winners(out)
     print(f"parsed {sum(counts.values())}/{num_games} games:", dict(counts))

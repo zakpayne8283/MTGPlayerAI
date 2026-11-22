@@ -32,7 +32,8 @@ def run_with_agent(launcher, decks, n, forge_dir, policy, deck_dir=None, quiet=T
 
     Returns (java_output_text, stats_dict).
     """
-    # messages_sent = []
+    messages_sent = []
+    actions = []
 
     server = socket.socket()
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -70,10 +71,11 @@ def run_with_agent(launcher, decks, n, forge_dir, policy, deck_dir=None, quiet=T
         f = conn.makefile("rw", encoding="utf-8")
         for line in f:  # ends when Java closes the socket
             msg = json.loads(line)
-            # messages_sent.append(msg)
+            messages_sent.append(msg)
             idx = int(policy(msg))
             stats["decisions"] += 1
             stats["kinds"][msg["kind"]] = stats["kinds"].get(msg["kind"], 0) + 1
+            actions.append(msg['actions'][idx])
             f.write(f"{idx}\n")
             f.flush()
     finally:
@@ -88,4 +90,4 @@ def run_with_agent(launcher, decks, n, forge_dir, policy, deck_dir=None, quiet=T
     out_file.close()
     if proc.returncode != 0:
         print(f"Java exited with code {proc.returncode}. Tail of output:\n{text[-2000:]}")
-    return text, stats#, messages_sent
+    return text, stats, messages_sent, actions
