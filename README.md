@@ -49,3 +49,9 @@ Validate a completed decision log with:
 ```sh
 python3 python/validate_decision_log.py decision_logs/your-run-id.jsonl
 ```
+
+Run the Python unit tests with:
+
+```sh
+python3 -m unittest discover -s python -p 'test_*.py' -v
+```
