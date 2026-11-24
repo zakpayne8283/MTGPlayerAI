@@ -1,15 +1,17 @@
 # Project roadmap
 
-This project has a working prototype: Forge runs games, Java intercepts the Python-controlled player's priority decisions, and Python selects from the choices Java sends. The next goal is to make that loop reproducible and observable before collecting data for learning.
+Forge runs games, Java intercepts the Python-controlled player's priority decisions, and Python selects from the choices Java sends. The initial learning target is supervised imitation: for each observable state and legal action set, learn to select the action Forge's AI selected. The first model will be a small neural policy that scores legal state-action pairs.
 
-## Recommended order
+## Next steps to a first trained policy
 
-1. **Make the Java bridge build reproducible** so every later change compiles against the intended Forge version.
-2. **Define a versioned decision record and improve logging**; use it as both human-readable diagnostics and the eventual training-data format.
-3. **Expand the game-state snapshot** to support meaningful decisions, while keeping the external record stable as features evolve.
-4. **Collect baseline games and decide on a learning method** using the state, legal actions, choices, and results produced above.
+1. **Observable state and versioned transport:** define and emit player life/poison, hand sizes, the acting player's known hand, battlefield permanents with current creature stats, graveyards, turn/phase, and perspective. Never expose opponent hidden cards or library contents.
+2. **Structured legal actions:** give each candidate a decision-scoped stable ID and explicit kind, source card, ability/API, mana value/cost, legal targets, and selected targets where available.
+3. **Forge supervision labels:** log Forge's original selected action separately from the policy's action. A target label is available only when Forge chose that same targeting decision; otherwise preserve it as unlabeled.
+4. **Feature encoder:** turn logs into numeric summaries plus categorical tokens/entity lists for cards, keywords, and actions. Fit vocabularies on training data only; keep raw JSON as the durable source of truth.
+5. **Dataset and neural policy:** split by game/run, train a masked choice/ranking model over only the legal actions, save model and encoder versions.
+6. **Evaluation and inference:** measure held-out agreement with Forge and win rate against Forge/pass/random baselines; integrate model scoring into Python with a legal-action fallback.
 
-The exact order can change if preserving the current build flow is useful, but the record schema should be agreed before building a large dataset.
+The Java/Python decision protocol and JSONL records are the stable boundary. Feature encoders and model architectures can change without rewriting old game records.
 
 ## 1. Java bridge as a Maven module
 
@@ -68,11 +70,11 @@ Action options should become objects with stable IDs and explicit fields (action
 - [x] Write JSONL records to a configurable output path; keep summary logging readable.
 - [x] Include validation or a small reader that checks records are parseable and internally consistent.
 
-Schema version 1 writes `decision` and `game_result` records to one JSONL file per run. Decision records contain action IDs, coarse action kinds, and display labels; card identity, ability mode, and target requirements can be split into richer fields as the action/state model is refactored. Target decisions carry a parent decision ID. Outcomes are separate records linked by `game_id`.
+Schema version 1 logs display-label actions. Schema version 2 is the structured state/action protocol, and includes `oracle_action_id` for Forge's selected priority action separately from Python's `chosen_action_id`. Target decisions are linked to their parent priority decision; target-choice oracle labels are not assumed when the target was selected by Python.
 
 ## 3. State representation
 
-**Necessary for useful policies; design the contract now, grow the features incrementally.** The current state is intentionally small: turn, phase, life totals, and the Python player's hand. That is enough to test the bridge but not enough to evaluate most choices. The state snapshot is currently assembled in Java as a JSON string.
+**Necessary for useful policies; grow the features incrementally.** Schema 1 had only turn, phase, life totals, and the Python player's hand. Schema 2 emits structured state from Forge game objects using Gson.
 
 Do not try to finalize every future model feature before choosing a learning setup. First define a versioned, observable snapshot with information the acting player is allowed to know. A useful first expansion is:
 
@@ -86,11 +88,13 @@ Keep raw game facts as structured fields and derive model-specific tensors/featu
 
 **Steps**
 
-- [ ] Write down the observable-state boundary and a compact version-1 state schema.
-- [ ] Replace hand-built JSON concatenation with a JSON library or typed serialization, if compatible with the chosen Maven setup.
-- [ ] Add public board, stack, graveyard, and relevant player/combat information in useful increments.
-- [ ] Ensure state and legal actions describe the same decision point and use consistent card/player identifiers.
-- [ ] Add checks for hidden-information leakage and missing/ambiguous fields.
+- [x] Write down the observable-state boundary and a compact version-2 state schema.
+- [x] Replace hand-built JSON concatenation with Gson serialization.
+- [x] Add player life/poison/hand sizes, acting-player hand identities, battlefield cards/current creature stats, and graveyards.
+- [x] Give actions structured fields and decision-scoped IDs; retain legal targets and Forge's selected targets on its suggestion.
+- [ ] Ensure state and legal actions describe the same decision point and validate against real decision logs.
+- [ ] Add runtime checks for hidden-information leakage and missing/ambiguous fields.
+- [ ] Extend state with stack/combat data once the current baseline schema is validated.
 
 ## 4. Learning approach
 
@@ -100,24 +104,32 @@ Suggested progression:
 
 1. **Baselines:** random legal choice, always pass, and accept the stock AI suggestion. Run repeated games with controlled decks/seeds where possible, swapping seats to reduce first-player/seat bias.
 2. **Data capture:** store versioned state, candidate actions, chosen action, game ID, and terminal result. Verify records and track decisions/games completed.
-3. **First learner:** start with imitation of the stock AI's selected action if the action can be mapped into the same candidate set. This provides dense decision labels without inventing reward shaping. Compare its behavior and results to the baselines.
+3. **First learner:** train a small neural policy to score each legal state-action pair, using Forge's original priority action as the label. This provides dense decision labels without inventing reward shaping. Compare its behavior and results to the baselines.
 4. **Outcome-driven learning:** once data and evaluation are reliable, consider a contextual bandit or a policy/value model trained from game outcomes. Full reinforcement learning/self-play is possible, but it requires many games, careful reward/evaluation design, and repeatable runs.
 5. **Evaluation:** keep held-out games or seeds, report win rate with uncertainty, compare seats/decks, and preserve model/data versions.
 
 **Steps**
 
-- [ ] Decide what one training example represents (priority decision, target choice, or both).
-- [ ] Capture a reliable result label and tie every decision to its game's result.
+- [x] Decide that one training example is a priority decision with its legal candidates; target choices are linked sub-decisions and need their own oracle labels before supervised target training.
+- [ ] Capture/validate Forge's oracle action label and tie every decision to its game's result.
 - [ ] Establish baseline win rates with repeated runs and seat swaps.
-- [ ] Check whether stock-AI choices can be mapped to the exact structured action IDs.
-- [ ] Choose imitation learning as the first learner, or document why a reward-based method is the better first experiment.
+- [x] Record Forge's selected suggestion in the same candidate list using its exact action ID.
+- [x] Choose supervised neural imitation as the first learner.
 - [ ] Define held-out evaluation before tuning a policy.
+
+## 5. Neural feature encoder
+
+The first encoder returns fixed numeric state summaries, categorical tokens for phases/cards/actions, per-creature entity features, and one feature row per legal action. This supports an initial neural architecture with embeddings and pooling while keeping raw schema-2 JSON as the source of truth.
+
+- [x] Implement a model-independent schema-2 feature extraction boundary in Python.
+- [ ] Add normalization, training-only vocabularies, unknown-category handling, and serialized encoder metadata.
+- [ ] Define the exact neural tensor shapes and masked choice loss when implementing training.
 
 ## Current implementation notes
 
-- Python currently has `random_policy` and `accept_ai_policy` helpers.
+- Python has random, Forge-suggestion, and always-pass baseline policies.
 - The Java controller delegates most gameplay decisions to Forge's AI and asks Python for the priority action; this is a useful scope for the first learning task.
-- `stateJson` currently reports turn, phase, life totals, and the acting player's hand.
+- Schema 2 reports turn/phase, player life/poison/hand counts, known acting hand cards, battlefield cards and current creature stats, and graveyards.
 - Existing saved run artifacts show 100 completed same-deck games, but they are not a controlled evaluation of a learned policy.
 - The Java source now lives in `src/main/java` and builds as the `forge-bridge` Maven artifact.
 - The runner resolves project and Forge paths from the script location and environment variables, and asks Maven for the runtime classpath.

@@ -10,7 +10,9 @@ import forge.game.spellability.TargetRestrictions;
 import forge.game.zone.ZoneType;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -62,33 +64,42 @@ public class PythonController extends PlayerControllerAi {
 
         // results.get(i) is what we return if Python picks index i. null == pass priority.
         List<List<SpellAbility>> results = new ArrayList<>();
-        List<String> labels = new ArrayList<>();
+        List<Map<String, Object>> actions = new ArrayList<>();
         results.add(null);
-        labels.add("Pass");
+        actions.add(passAction(actionId(0), "Pass"));
 
-        // Keep Forge's chosen play available as a safe option; its ability may already have targets.
-        int aiIdx = -1;
+        // Forge's choice is label metadata, never a special feature the learner could memorize.
         List<SpellAbility> aiPick = super.chooseSpellAbilityToPlay();
-        if (aiPick != null && !aiPick.isEmpty()) {
-            aiIdx = results.size();
-            results.add(aiPick);
-            labels.add("AI suggestion: " + describe(aiPick.get(0)));
-        }
-
-        // Also expose straightforward plays that Python can choose and, if needed, target itself.
+        int oracleIdx = aiPick == null || aiPick.isEmpty() ? 0 : -1;
+        String oracleKey = oracleIdx == 0 ? null : actionKey(aiPick.get(0));
         for (SpellAbility sa : drivablePlays()) {
             List<SpellAbility> one = new ArrayList<>();
             one.add(sa);
             results.add(one);
-            labels.add(describe(sa));
+            int index = results.size() - 1;
+            actions.add(spellAction(sa, actionId(index), actionKind(sa)));
+            if (oracleIdx < 0 && actionKey(sa).equals(oracleKey)) {
+                oracleIdx = index;
+                results.set(index, aiPick);
+                copySelectedTargets(actions.get(index), aiPick.get(0));
+            }
+        }
+        if (oracleIdx < 0) {
+            // Preserve Forge plays outside the manually drivable subset as ordinary candidates.
+            oracleIdx = results.size();
+            results.add(aiPick);
+            actions.add(spellAction(aiPick.get(0), actionId(oracleIdx), actionKind(aiPick.get(0))));
         }
 
         int priorityDecisionId = ++decisionSequence;
-        int idx = ask("priority", priorityDecisionId, null, stateJson(null), labels);
+        // IDs are decision-scoped; rebuild them with the actual decision ID before sending.
+        for (int i = 0; i < actions.size(); i++) actions.get(i).put("action_id", actionId(priorityDecisionId, i));
+        String oracleActionId = actions.get(oracleIdx).get("action_id").toString();
+        int idx = ask("priority", priorityDecisionId, null, stateSnapshot(null), actions, oracleActionId);
         List<SpellAbility> chosen = results.get(idx);
 
-        // The AI's own suggestion already has its targets set. Ours do not, so set them now.
-        if (chosen != null && idx != aiIdx) {
+        // The oracle candidate already carries Forge's selected targets; our alternatives do not.
+        if (chosen != null && idx != oracleIdx) {
             chooseTarget(chosen.get(0), priorityDecisionId);
         }
         return chosen;
@@ -128,24 +139,23 @@ public class PythonController extends PlayerControllerAi {
         List<GameObject> cands = targetCandidates(sa);
         if (cands.isEmpty()) return;
 
-        List<String> labels = new ArrayList<>();
-        for (GameObject o : cands) labels.add(describeTarget(o));
-
         int targetDecisionId = ++decisionSequence;
+        List<Map<String, Object>> actions = new ArrayList<>();
+        for (int i = 0; i < cands.size(); i++) actions.add(targetAction(cands.get(i), actionId(targetDecisionId, i)));
         int i = ask("target", targetDecisionId, parentDecisionId,
-                stateJson(sa.getHostCard().getName()), labels);
+                stateSnapshot(sa.getHostCard().getName()), actions, null);
         sa.resetTargets();
         sa.getTargets().add(cands.get(i));
     }
 
     private int ask(String kind, int decisionId, Integer parentDecisionId,
-                    String state, List<String> actions) {
+                    Object state, List<Map<String, Object>> actions, String oracleActionId) {
         Player active = g.getPhaseHandler().getPlayerTurn();
         Player priority = g.getPhaseHandler().getPriorityPlayer();
         return BridgeClient.ask(gameId, decisionId, parentDecisionId, kind,
                 g.getPhaseHandler().getTurn(), active == null ? "" : active.getName(),
                 priority == null ? "" : priority.getName(),
-                String.valueOf(g.getPhaseHandler().getPhase()), state, actions);
+                String.valueOf(g.getPhaseHandler().getPhase()), state, actions, oracleActionId);
     }
 
     private List<GameObject> targetCandidates(SpellAbility sa) {
@@ -162,34 +172,175 @@ public class PythonController extends PlayerControllerAi {
         return res;
     }
 
-    private String describeTarget(GameObject o) {
+    private Map<String, Object> targetAction(GameObject o, String id) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("action_id", id);
+        action.put("kind", "target_choice");
+        action.put("label", describeTarget(o));
         if (o instanceof Card) {
             Card c = (Card) o;
-            return c.getName() + (c.getController() == me ? " [mine]" : " [opp]");
+            action.put("target_type", "card");
+            action.put("target_id", c.getId());
+            action.put("target_card", c.getName());
+            action.put("target_controller", c.getController() == me ? "acting_player" : "opponent");
+        } else if (o instanceof Player) {
+            Player p = (Player) o;
+            action.put("target_type", "player");
+            action.put("target_id", playerKey(p));
+            action.put("target_player", p == me ? "acting_player" : "opponent");
+        } else {
+            action.put("target_type", "other");
+        }
+        return action;
+    }
+
+    private String describeTarget(GameObject o) {
+        if (o instanceof Card) {
+            Card card = (Card) o;
+            return card.getName() + (card.getController() == me ? " [mine]" : " [opp]");
         }
         if (o instanceof Player) {
-            return ((Player) o).getName() + (o == me ? " [me]" : " [opp]");
+            Player player = (Player) o;
+            return player.getName() + (player == me ? " [me]" : " [opp]");
         }
         return o.toString();
+    }
+
+    private Map<String, Object> passAction(String id, String label) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("action_id", id);
+        action.put("kind", "pass");
+        action.put("label", label);
+        return action;
+    }
+
+    private Map<String, Object> spellAction(SpellAbility sa, String id, String kind) {
+        Card source = sa.getHostCard();
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("action_id", id);
+        action.put("kind", kind);
+        action.put("label", describe(sa));
+        action.put("source_card_id", source.getId());
+        action.put("source_card", source.getName());
+        action.put("source_zone", source.getZone() == null ? "unknown" : source.getZone().getZoneType().name());
+        action.put("card_types", cardTypes(source));
+        action.put("type_line", source.getType().toString());
+        action.put("mana_cost", source.getManaCost().toString());
+        action.put("mana_value", source.getCMC());
+        action.put("ability_api", sa.getApi().name());
+        action.put("ability", sa.toString());
+        action.put("uses_targeting", sa.usesTargeting());
+        List<Map<String, Object>> targets = new ArrayList<>();
+        if (sa.usesTargeting()) {
+            for (GameObject target : targetCandidates(sa)) targets.add(targetAction(target, null));
+        }
+        action.put("legal_targets", targets);
+        List<Map<String, Object>> chosenTargets = new ArrayList<>();
+        if (sa.getTargets() != null) {
+            for (GameObject target : sa.getTargets().getTargetEntities()) chosenTargets.add(targetAction(target, null));
+        }
+        action.put("selected_targets", chosenTargets);
+        return action;
+    }
+
+    private String actionKind(SpellAbility sa) {
+        return sa.isSpell() ? "cast_spell" : "activate_ability";
+    }
+
+    private String actionKey(SpellAbility sa) {
+        return sa.getHostCard().getId() + "|" + sa.getApi().name() + "|" + sa;
+    }
+
+    private void copySelectedTargets(Map<String, Object> action, SpellAbility oracle) {
+        List<Map<String, Object>> targets = new ArrayList<>();
+        if (oracle.getTargets() != null) {
+            for (GameObject target : oracle.getTargets().getTargetEntities()) targets.add(targetAction(target, null));
+        }
+        action.put("selected_targets", targets);
     }
 
     private static String describe(SpellAbility sa) {
         return sa.getHostCard().getName() + ": " + sa;
     }
 
-    /** Deliberately small for now. Only what this player can legally see. */
-    private String stateJson(String casting) {
-        StringBuilder sb = new StringBuilder("{");
-        sb.append("\"turn\":").append(g.getPhaseHandler().getTurn());
-        sb.append(",\"phase\":").append(BridgeClient.q(String.valueOf(g.getPhaseHandler().getPhase())));
-        sb.append(",\"my_life\":").append(me.getLife());
-        for (Player p : g.getPlayers()) {
-            if (p != me) sb.append(",\"opp_life\":").append(p.getLife());
-        }
-        List<String> hand = new ArrayList<>();
-        for (Card c : me.getCardsIn(ZoneType.Hand)) hand.add(c.getName());
-        sb.append(",\"hand\":").append(BridgeClient.arr(hand));
-        if (casting != null) sb.append(",\"casting\":").append(BridgeClient.q(casting));
-        return sb.append("}").toString();
+    private String actionId(int index) {
+        return actionId(decisionSequence + 1, index);
     }
+
+    private String actionId(int decisionId, int index) {
+        return gameId + ":" + decisionId + ":" + index;
+    }
+
+    /** Observable facts for the acting player; opponent hand identities and libraries are omitted. */
+    private Map<String, Object> stateSnapshot(String casting) {
+        Map<String, Object> state = new LinkedHashMap<>();
+        state.put("turn", g.getPhaseHandler().getTurn());
+        state.put("phase", String.valueOf(g.getPhaseHandler().getPhase()));
+        Player active = g.getPhaseHandler().getPlayerTurn();
+        Player priority = g.getPhaseHandler().getPriorityPlayer();
+        state.put("active_player", active == null ? null : playerKey(active));
+        state.put("priority_player", priority == null ? null : playerKey(priority));
+        state.put("acting_player", playerKey(me));
+        List<Map<String, Object>> players = new ArrayList<>();
+        for (Player p : g.getPlayers()) {
+            Map<String, Object> player = new LinkedHashMap<>();
+            player.put("id", playerKey(p));
+            player.put("life", p.getLife());
+            player.put("poison", p.getPoisonCounters());
+            player.put("hand_size", p.getCardsIn(ZoneType.Hand).size());
+            if (p == me) player.put("hand", cardList(p.getCardsIn(ZoneType.Hand), p));
+            player.put("battlefield", cardList(p.getCardsIn(ZoneType.Battlefield), p));
+            player.put("graveyard", cardList(p.getCardsIn(ZoneType.Graveyard), p));
+            players.add(player);
+        }
+        state.put("players", players);
+        if (casting != null) state.put("casting", casting);
+        return state;
+    }
+
+    private List<Map<String, Object>> cardList(Iterable<Card> cards, Player perspective) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Card card : cards) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", card.getId());
+            item.put("card", card.getName());
+            item.put("types", cardTypes(card));
+            item.put("type_line", card.getType().toString());
+            item.put("controller", card.getController() == perspective ? "acting_player" : "opponent");
+            item.put("mana_value", card.getCMC());
+            if (card.isInPlay()) {
+                item.put("tapped", card.isTapped());
+                if (card.isCreature()) {
+                    item.put("power", card.getNetPower());
+                    item.put("toughness", card.getNetToughness());
+                    item.put("damage", card.getDamage());
+                    item.put("summoning_sick", card.isSick());
+                    List<String> keywords = new ArrayList<>();
+                    card.getKeywords().forEach(keyword -> keywords.add(keyword.toString()));
+                    item.put("keywords", keywords);
+                }
+            }
+            result.add(item);
+        }
+        return result;
+    }
+
+    private List<String> cardTypes(Card card) {
+        List<String> types = new ArrayList<>();
+        if (card.isCreature()) types.add("Creature");
+        if (card.isLand()) types.add("Land");
+        if (card.isInstant()) types.add("Instant");
+        if (card.isSorcery()) types.add("Sorcery");
+        if (card.isArtifact()) types.add("Artifact");
+        if (card.isEnchantment()) types.add("Enchantment");
+        if (card.isPlaneswalker()) types.add("Planeswalker");
+        if (card.isBattle()) types.add("Battle");
+        return types;
+    }
+
+    private String playerKey(Player player) {
+        List<Player> players = g.getPlayers();
+        return "player_" + (players.indexOf(player) + 1);
+    }
+
 }

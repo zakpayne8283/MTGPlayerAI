@@ -1,22 +1,21 @@
+import com.google.gson.Gson;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Tiny line-based client. Java sends one JSON line per decision; Python replies with one line
- * containing a single integer (the index into "actions"). No JSON library needed on this side.
- */
+/** Line-based JSON client between Forge and the Python policy. */
 public class BridgeClient {
     private static BufferedReader in;
     private static PrintWriter out;
     private static Socket socket;
+    private static final Gson GSON = new Gson();
 
-    public static boolean enabled() {
-        return in != null;
-    }
+    public static boolean enabled() { return in != null; }
 
-    /** Opens the single loopback connection shared by all decisions in one simulation batch. */
     public static void connect(int port) throws IOException {
         socket = new Socket("127.0.0.1", port);
         socket.setTcpNoDelay(true);
@@ -25,34 +24,33 @@ public class BridgeClient {
     }
 
     public static void close() {
-        try {
-            if (socket != null) socket.close();
-        } catch (IOException ignored) {
-        }
+        try { if (socket != null) socket.close(); } catch (IOException ignored) { }
     }
 
-    /** synchronized: a timed-out game's leftover thread must not interleave with the next game. */
     public static synchronized int ask(String gameId, int decisionId, Integer parentDecisionId,
                                        String kind, int turn, String activePlayer, String priorityPlayer,
-                                       String phase, String stateJson, List<String> actions) {
-        StringBuilder sb = new StringBuilder();
-        // Newline framing lets Python read one complete decision at a time without extra libraries.
-        sb.append("{\"type\":\"decision\",\"schema_version\":1,\"game_id\":").append(q(gameId));
-        sb.append(",\"decision_id\":").append(decisionId);
-        if (parentDecisionId != null) sb.append(",\"parent_decision_id\":").append(parentDecisionId);
-        sb.append(",\"kind\":").append(q(kind));
-        sb.append(",\"turn\":").append(turn);
-        sb.append(",\"active_player\":").append(q(activePlayer));
-        sb.append(",\"priority_player\":").append(q(priorityPlayer));
-        sb.append(",\"phase\":").append(q(phase));
-        sb.append(",\"state\":").append(stateJson);
-        sb.append(",\"actions\":").append(arr(actions)).append("}");
-        out.println(sb);
+                                       String phase, Object state, List<Map<String, Object>> actions,
+                                       String oracleActionId) {
+        Map<String, Object> message = new LinkedHashMap<>();
+        message.put("type", "decision");
+        message.put("schema_version", 2);
+        message.put("game_id", gameId);
+        message.put("decision_id", decisionId);
+        if (parentDecisionId != null) message.put("parent_decision_id", parentDecisionId);
+        message.put("kind", kind);
+        message.put("turn", turn);
+        message.put("active_player", activePlayer);
+        message.put("priority_player", priorityPlayer);
+        message.put("phase", phase);
+        message.put("state", state);
+        message.put("actions", actions);
+        message.put("oracle_action_id", oracleActionId);
+        out.println(GSON.toJson(message));
         try {
             String line = in.readLine();
             if (line == null) throw new IllegalStateException("Python closed the connection");
             int idx = Integer.parseInt(line.trim());
-            return (idx < 0 || idx >= actions.size()) ? 0 : idx; // clamp bad replies to index 0 (Pass)
+            return (idx < 0 || idx >= actions.size()) ? 0 : idx;
         } catch (NumberFormatException e) {
             return 0;
         } catch (IOException e) {
@@ -60,44 +58,18 @@ public class BridgeClient {
         }
     }
 
-    /** Send the terminal outcome for a game; unlike ask(), this message needs no reply. */
     public static synchronized void sendGameResult(String runId, String gameId, String outcome,
                                                    String winner, String reason, int turns) {
         if (!enabled()) return;
-        StringBuilder sb = new StringBuilder("{\"type\":\"game_result\",\"schema_version\":1");
-        sb.append(",\"run_id\":").append(q(runId));
-        sb.append(",\"game_id\":").append(q(gameId));
-        sb.append(",\"outcome\":").append(q(outcome));
-        sb.append(",\"winner\":").append(winner == null ? "null" : q(winner));
-        sb.append(",\"reason\":").append(q(reason));
-        sb.append(",\"turns\":").append(turns).append("}");
-        out.println(sb);
-    }
-
-    public static String q(String s) {
-        // Escape JSON string content, including control characters, before writing protocol lines.
-        StringBuilder sb = new StringBuilder("\"");
-        for (char c : s.toCharArray()) {
-            switch (c) {
-                case '"': sb.append("\\\""); break;
-                case '\\': sb.append("\\\\"); break;
-                case '\n': sb.append("\\n"); break;
-                case '\r': sb.append("\\r"); break;
-                case '\t': sb.append("\\t"); break;
-                default:
-                    if (c < 0x20) sb.append(String.format("\\u%04x", (int) c));
-                    else sb.append(c);
-            }
-        }
-        return sb.append('"').toString();
-    }
-
-    public static String arr(List<String> items) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < items.size(); i++) {
-            if (i > 0) sb.append(',');
-            sb.append(q(items.get(i)));
-        }
-        return sb.append(']').toString();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("type", "game_result");
+        result.put("schema_version", 2);
+        result.put("run_id", runId);
+        result.put("game_id", gameId);
+        result.put("outcome", outcome);
+        result.put("winner", winner);
+        result.put("reason", reason);
+        result.put("turns", turns);
+        out.println(GSON.toJson(result));
     }
 }

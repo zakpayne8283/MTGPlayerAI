@@ -23,8 +23,8 @@ def validate(path):
 
             run_id = record.get("run_id")
             game_id = record.get("game_id")
-            if record.get("schema_version") != 1:
-                errors.append(f"line {line_number}: expected schema_version 1")
+            if record.get("schema_version") not in (1, 2):
+                errors.append(f"line {line_number}: unsupported schema_version")
             if not isinstance(run_id, str) or not isinstance(game_id, str) or not run_id or not game_id:
                 errors.append(f"line {line_number}: missing run_id or game_id")
                 continue
@@ -60,6 +60,14 @@ def validate(path):
                 elif (not isinstance(record.get("chosen_action"), dict)
                         or record["chosen_action"].get("action_id") != chosen_id):
                     errors.append(f"line {line_number}: chosen_action does not match chosen_action_id")
+                oracle_id = record.get("oracle_action_id")
+                if oracle_id is not None and oracle_id not in ids:
+                    errors.append(f"line {line_number}: oracle_action_id is not in available_actions")
+                if record.get("schema_version") == 2:
+                    if not isinstance(record.get("state"), dict):
+                        errors.append(f"line {line_number}: schema 2 state must be an object")
+                    if any(not isinstance(item, dict) for item in available):
+                        errors.append(f"line {line_number}: schema 2 actions must be structured objects")
 
             elif record.get("record_type") == "game_result":
                 if game_id in game_results:

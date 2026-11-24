@@ -20,9 +20,15 @@ def random_policy(msg):
 
 
 def accept_ai_policy(msg):
-    """Take the stock AI's suggestion when there is one, else pass. Should play like the stock AI."""
+    """Choose Forge's oracle-labeled candidate, falling back to pass for older messages."""
+    oracle_id = msg.get("oracle_action_id")
+    if oracle_id is not None:
+        for i, action in enumerate(msg["actions"]):
+            if isinstance(action, dict) and action.get("action_id") == oracle_id:
+                return i
     for i, action in enumerate(msg["actions"]):
-        if action.startswith("AI suggestion"):
+        label = action.get("label", "") if isinstance(action, dict) else action
+        if label.startswith("AI suggestion"):
             return i
     return 0
 
@@ -122,18 +128,24 @@ def run_with_agent(launcher, decks, n, forge_dir, policy, deck_dir=None, quiet=T
             stats["kinds"][msg["kind"]] = stats["kinds"].get(msg["kind"], 0) + 1
             actions.append(msg["actions"][idx])
 
-            available_actions = [
-                {
-                    "action_id": f"{msg['game_id']}:{msg['decision_id']}:{i}",
-                    "index": i,
-                    "kind": action_kind(msg["kind"], label, i),
-                    "label": label,
-                }
-                for i, label in enumerate(msg["actions"])
-            ]
+            available_actions = []
+            for i, action in enumerate(msg["actions"]):
+                if isinstance(action, dict):
+                    record = dict(action)
+                    record.setdefault("action_id", f"{msg['game_id']}:{msg['decision_id']}:{i}")
+                    record.setdefault("index", i)
+                    record.setdefault("kind", action_kind(msg["kind"], record.get("label", ""), i))
+                else:  # Read older schema-1 protocol messages while archived logs remain in use.
+                    record = {
+                        "action_id": f"{msg['game_id']}:{msg['decision_id']}:{i}",
+                        "index": i,
+                        "kind": action_kind(msg["kind"], action, i),
+                        "label": action,
+                    }
+                available_actions.append(record)
             chosen_action = available_actions[idx]
             write_jsonl(log_file, {
-                "schema_version": 1,
+                "schema_version": msg.get("schema_version", 1),
                 "record_type": "decision",
                 "run_id": run_id,
                 "game_id": msg["game_id"],
@@ -146,6 +158,7 @@ def run_with_agent(launcher, decks, n, forge_dir, policy, deck_dir=None, quiet=T
                 "phase": msg["phase"],
                 "state": msg["state"],
                 "available_actions": available_actions,
+                "oracle_action_id": msg.get("oracle_action_id"),
                 "chosen_action_id": chosen_action["action_id"],
                 "chosen_action": chosen_action,
                 "result": None,
