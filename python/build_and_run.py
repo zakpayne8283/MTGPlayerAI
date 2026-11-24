@@ -29,7 +29,12 @@ DECK_DIR = Path(os.environ.get("DECK_DIR", PROJECT_ROOT / "decks")).expanduser()
 DECISION_LOG_DIR = Path(os.environ.get(
     "DECISION_LOG_DIR", PROJECT_ROOT / "decision_logs"
 )).expanduser()
-DECKS = ["AI Deck #1.dck", "AI Deck #1.dck"]
+DECKS = ["v1-white.dck", "v1-blue.dck", "v1-black.dck", "v1-red.dck", "v1-green.dck"]
+POLICIES = {
+    "forge": agent.accept_ai_policy,
+    "pass": agent.always_pass_policy,
+    "random": agent.random_policy,
+}
 MAIN_CLASS = "Launcher"
 
 
@@ -62,7 +67,7 @@ def build_bridge():
     ])
 
 
-def run_games(classpath, n, quiet=True):
+def run_games(classpath, n, decks, policy, quiet=True, report=True):
     if not FORGE_DIR.is_dir():
         raise RuntimeError(f"Forge runtime directory not found: {FORGE_DIR}")
     launcher = [
@@ -71,24 +76,57 @@ def run_games(classpath, n, quiet=True):
     ]
     output, stats, messages, actions = agent.run_with_agent(
         launcher=launcher,
-        decks=DECKS,
+        decks=decks,
         deck_dir=DECK_DIR,
         n=n,
         forge_dir=FORGE_DIR,
         quiet=quiet,
-        policy=agent.random_policy,
+        policy=policy,
         log_dir=DECISION_LOG_DIR,
     )
     (PROJECT_ROOT / "last_bridge_output.txt").write_text(output, encoding="utf-8")
-    print(f"Python decisions: {stats['decisions']} ({stats['kinds']})")
-    print(f"Completed games: {stats['games']}; decision log: {stats['decision_log']}")
+    if report:
+        print(f"Python decisions: {stats['decisions']} ({stats['kinds']})")
+        print(f"Completed games: {stats['games']}; decision log: {stats['decision_log']}")
     return output, messages, actions
+
+
+def run_matrix(classpath, games_per_matchup, policy_names):
+    """Run every ordered deck matchup with the selected Python policy in seat 1."""
+    totals = {name: Counter() for name in policy_names}
+    for policy_name in policy_names:
+        print(f"\nPolicy: {policy_name}")
+        for deck_a in DECKS:
+            row = []
+            for deck_b in DECKS:
+                output, _, _ = run_games(
+                    classpath, games_per_matchup, [deck_a, deck_b],
+                    POLICIES[policy_name], quiet=True, report=False,
+                )
+                winners = Counter(re.findall(
+                    r"Game Result: Game \d+ ended in \d+ ms\. (Ai\(\d+\))", output
+                ))
+                a_wins = winners.get("Ai(1)", 0)
+                b_wins = winners.get("Ai(2)", 0)
+                draws = games_per_matchup - a_wins - b_wins
+                totals[policy_name]["games"] += games_per_matchup
+                totals[policy_name]["wins"] += a_wins
+                totals[policy_name]["losses"] += b_wins
+                totals[policy_name]["draws"] += draws
+                pct = 100 * a_wins / games_per_matchup if games_per_matchup else 0
+                row.append(f"{pct:.1f}% ({a_wins}/{games_per_matchup})")
+            print(f"{deck_a.removesuffix('.dck')}: " + " | ".join(row))
+        t = totals[policy_name]
+        print(f"Total seat-1: {t['wins']} wins, {t['losses']} losses, {t['draws']} draws")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Build the bridge and run Forge simulations.")
     parser.add_argument("num_games", nargs="?", type=int, default=100)
     parser.add_argument("--verbose", action="store_true", help="Keep Forge's full game log.")
+    parser.add_argument("--matrix", action="store_true", help="Run the full ordered 5x5 deck matchup grid.")
+    parser.add_argument("--games-per-matchup", type=int, default=400)
+    parser.add_argument("--policies", nargs="+", choices=POLICIES, default=list(POLICIES))
     return parser.parse_args()
 
 
@@ -96,7 +134,10 @@ def main():
     args = parse_args()
     try:
         classpath = build_bridge()
-        output, _, _ = run_games(classpath, args.num_games, quiet=not args.verbose)
+        if args.matrix:
+            run_matrix(classpath, args.games_per_matchup, args.policies)
+            return 0
+        output, _, _ = run_games(classpath, args.num_games, DECKS[:2], agent.random_policy, quiet=not args.verbose)
     except RuntimeError as exc:
         print(exc, file=sys.stderr)
         print(

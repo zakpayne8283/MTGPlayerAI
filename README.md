@@ -36,6 +36,14 @@ The game count defaults to 100. Forge's runtime working directory defaults to `f
 
 Use `--verbose` to retain Forge's full game log. The runner writes Forge output to `last_bridge_output.txt` and one JSONL file per run with decision context, available actions, choices, and game outcomes.
 
+Run the ordered 5×5 v1 deck matchup grid with 400 games per cell for all three baseline policies:
+
+```sh
+python3 python/build_and_run.py --matrix --games-per-matchup 400
+```
+
+The rows are the deck controlled by Python in seat 1; columns are the stock Forge AI deck in seat 2. The default policies are `forge` (accept Forge's priority suggestion), `pass` (always pass priority), and `random` (choose a random offered option). Select policies with, for example, `--policies forge random`. Each cell prints seat 1's win count and rate. Forge randomly picks an initial player for the first game; its AI then keeps that choice, so starting seat is randomized across simulations rather than fixed by deck order.
+
 Validate a completed decision log with:
 
 ```sh

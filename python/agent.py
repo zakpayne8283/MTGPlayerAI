@@ -27,6 +27,10 @@ def accept_ai_policy(msg):
     return 0
 
 
+def always_pass_policy(msg):
+    return 0
+
+
 def action_kind(decision_kind, label, index):
     """Return a coarse category while available actions are still display labels."""
     if decision_kind == "target":
